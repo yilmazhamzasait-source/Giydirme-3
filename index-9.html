@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanal Kabin</title>
+<style>
+  :root{
+    --bg:#f4f2ee; --surface:#ffffff; --text:#1b1b1d; --muted:#6e6c69; --line:#e6e2dc;
+    --accent:#1b1b1d; --accent-text:#ffffff; --soft:#efece6; --ok:#1f7a4d; --err:#b3261e;
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141416; --surface:#1e1e21; --text:#f2f1ee; --muted:#a09d98; --line:#2e2e32;
+      --accent:#f2f1ee; --accent-text:#141416; --soft:#26262a; --ok:#5fd29a; --err:#ff8a80; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit}
+  header{max-width:1180px;margin:0 auto;padding:22px 20px 8px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:22px;margin:0;letter-spacing:-.01em}
+  header p{margin:2px 0 0;color:var(--muted);font-size:14px}
+  .icon-btn{margin-left:auto;border:1px solid var(--line);background:var(--surface);border-radius:12px;
+    padding:9px 14px;font-size:14px;cursor:pointer}
+  main{max-width:1180px;margin:0 auto;padding:12px 20px 40px;display:grid;
+    grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:20px;align-items:start}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .step{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;font-size:15px;font-weight:600}
+  .step small{font-weight:400;color:var(--muted);font-size:12px}
+  .inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .drop{position:relative;aspect-ratio:3/4;border:1.5px dashed var(--line);border-radius:12px;background:var(--soft);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    color:var(--muted);font-size:13px;overflow:hidden;cursor:pointer;padding:10px}
+  .drop b{display:block;font-size:28px;font-weight:300;color:var(--text);margin-bottom:4px}
+  .drop img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--soft);display:none}
+  .drop.has{border-style:solid}
+  .drop.has img{display:block}
+  .drop input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:1;font-size:100px}
+  .drop .x{position:absolute;top:8px;right:8px;z-index:2;width:28px;height:28px;border-radius:50%;border:0;
+    background:rgba(0,0,0,.6);color:#fff;cursor:pointer;display:none;font-size:16px;line-height:28px}
+  .drop.has .x{display:block}
+  .tip{font-size:12px;color:var(--muted);margin:6px 2px 0;line-height:1.35}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--soft);border-radius:12px;padding:4px;gap:4px;margin-top:14px}
+  .seg.seg2{grid-template-columns:1fr 1fr}
+  .seg button{border:0;background:transparent;border-radius:9px;padding:9px 4px;font-size:14px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:600}
+  .go{width:100%;margin-top:14px;border:0;border-radius:12px;padding:15px;font-size:16px;font-weight:600;
+    background:var(--accent);color:var(--accent-text);cursor:pointer}
+  .go:disabled{opacity:.35;cursor:default}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.4}
+
+  .stage{position:relative;aspect-ratio:3/4;max-height:78vh;margin:0 auto;border-radius:12px;overflow:hidden;
+    background:var(--soft);user-select:none;-webkit-user-select:none;touch-action:pan-y}
+  .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
+  #before{clip-path:inset(0 50% 0 0)}
+  .divider{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;box-shadow:0 0 6px rgba(0,0,0,.3);
+    transform:translateX(-1px);pointer-events:none}
+  .divider i{position:absolute;top:50%;left:50%;width:36px;height:36px;border-radius:50%;background:#fff;
+    transform:translate(-50%,-50%);box-shadow:0 1px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;
+    color:#333;font-style:normal;font-size:14px}
+  .tag{position:absolute;top:10px;padding:4px 8px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;pointer-events:none}
+  .tag.l{left:10px} .tag.r{right:10px}
+  .cmp{display:none} .stage.compare .cmp{display:block} .stage.compare .tag{display:block}
+  .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:var(--muted);text-align:center;padding:30px;font-size:14px;line-height:1.5}
+  .empty svg{width:64px;height:64px;margin-bottom:10px;opacity:.5}
+  .busy{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(20,20,22,.55);color:#fff;text-align:center;padding:24px;backdrop-filter:blur(3px)}
+  .busy.show{display:flex}
+  .spin{width:42px;height:42px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;
+    animation:sp 1s linear infinite;margin-bottom:14px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .busy .t1{font-size:16px;font-weight:600} .busy .t2{font-size:13px;opacity:.85;margin-top:4px}
+  .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .btn{flex:1;min-width:120px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 10px;
+    font-size:14px;cursor:pointer}
+  .btn:disabled{opacity:.4;cursor:default}
+  .msg{margin-top:12px;font-size:13px;line-height:1.45;padding:10px 12px;border-radius:10px;display:none}
+  .msg.show{display:block;white-space:pre-line;word-break:break-word}
+  .msg.err{background:color-mix(in srgb, var(--err) 12%, transparent);color:var(--err)}
+  .msg.ok{background:color-mix(in srgb, var(--ok) 12%, transparent);color:var(--ok)}
+  .hist{display:flex;gap:8px;overflow-x:auto;margin-top:12px;padding-bottom:4px}
+  .hist img{width:62px;height:82px;object-fit:cover;border-radius:8px;border:2px solid transparent;cursor:pointer;flex:none;background:var(--soft)}
+  .hist img.on{border-color:var(--text)}
+
+  dialog{border:0;border-radius:var(--radius);padding:0;max-width:440px;width:calc(100% - 32px);background:var(--surface);color:var(--text)}
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  .dlg{padding:20px}
+  .dlg h2{margin:0 0 12px;font-size:18px}
+  .dlg label{display:block;font-size:13px;margin:14px 0 6px;font-weight:600}
+  .dlg input,.dlg select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font-size:14px}
+  .dlg p{font-size:12px;color:var(--muted);line-height:1.45;margin:6px 0 0}
+  .dlg a{color:inherit}
+  .dlg .row{display:flex;gap:8px;margin-top:18px}
+
+  @media (max-width:860px){
+    main{grid-template-columns:1fr}
+    .stage{max-height:none}
+    header{padding-top:16px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Sanal Kabin</h1>
+    <p>Fotoğrafını ve bir kıyafeti yükle, yapay zekâ seni o kıyafetle göstersin.</p>
+  </div>
+  <button class="icon-btn" id="openSettings">Ayarlar</button>
+</header>
+
+<main>
+  <section class="card">
+    <div class="step">Görsel türü</div>
+    <div class="seg seg2" id="styleSeg" style="margin:0 0 16px">
+      <button data-style="photo" class="on">Gerçek fotoğraf</button>
+      <button data-style="anime">Çizim / anime</button>
+    </div>
+    <div class="inputs">
+      <div>
+        <div class="step">1. Sen</div>
+        <div class="drop" id="dropPerson">
+          <div><b>+</b>Fotoğrafın</div>
+          <img alt="">
+          <input type="file" accept="image/*" id="filePerson">
+          <button class="x" data-clear="person" title="Kaldır">×</button>
+        </div>
+        <p class="tip" id="tipPerson">Karşıdan, tüm vücut, iyi ışık. Kollar gövdeyi kapatmasın.</p>
+      </div>
+      <div>
+        <div class="step">2. Kıyafet</div>
+        <div class="drop" id="dropCloth">
+          <div><b>+</b>Kıyafet fotoğrafı</div>
+          <img alt="">
+          <input type="file" accept="image/*" id="fileCloth">
+          <button class="x" data-clear="cloth" title="Kaldır">×</button>
+        </div>
+        <p class="tip">Ürün fotoğrafı ya da kıyafeti giyen biri olabilir. Kıyafet net görünsün.</p>
+      </div>
+    </div>
+
+    <div class="step" style="margin-top:16px">3. Kıyafet türü</div>
+    <div class="seg" id="typeSeg" style="margin-top:0">
+      <button data-type="upper" class="on">Üst</button>
+      <button data-type="lower">Alt</button>
+      <button data-type="overall">Elbise / tüm</button>
+    </div>
+
+    <button class="go" id="go" disabled>Giydir</button>
+    <p class="hint" id="goHint">Önce iki fotoğrafı da yükle.</p>
+  </section>
+
+  <section class="card">
+    <div class="stage" id="stage">
+      <div class="empty" id="empty">
+        <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 8l-12 8 6 10 6-3v33h20V23l6 3 6-10-12-8c-2 4-6 6-10 6s-8-2-10-6z"/></svg>
+        Sonuç burada görünecek.<br>Kaydırarak önceki halinle karşılaştırabileceksin.
+      </div>
+      <img id="after" alt="">
+      <img id="before" class="cmp" alt="">
+      <div class="divider cmp" id="divider"><i>⇆</i></div>
+      <span class="tag l cmp">Önce</span><span class="tag r cmp">Sonra</span>
+      <div class="busy" id="busy"><div class="spin"></div><div class="t1" id="busyT1">Hazırlanıyor…</div><div class="t2" id="busyT2"></div></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="dl" disabled>İndir</button>
+      <button class="btn" id="again" disabled>Farklı sonuç</button>
+      <button class="btn" id="useAsMe" disabled>Bunu fotoğrafım yap</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="hist" id="hist"></div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <form method="dialog" class="dlg">
+    <h2>Ayarlar</h2>
+    <label for="token">Hugging Face anahtarı (isteğe bağlı)</label>
+    <input id="token" type="password" placeholder="hf_…" autocomplete="off">
+    <p>Ücretsiz sunucunun günlük bir kullanım kotası var. Ücretsiz bir Hugging Face hesabı açıp
+      <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">buradan</a> "Read" türünde bir anahtar oluşturursan kotan artar.
+      Anahtar yalnızca bu tarayıcıda saklanır.</p>
+    <label for="quality">Kalite</label>
+    <select id="quality">
+      <option value="30">Hızlı (30 adım)</option>
+      <option value="50" selected>Kaliteli (50 adım)</option>
+    </select>
+    <p>Kaliteli mod biraz daha uzun sürer ve kotadan biraz daha fazla harcar.</p>
+    <div class="row">
+      <button class="btn" value="cancel">Kapat</button>
+      <button class="btn" id="saveSettings" value="ok" style="background:var(--accent);color:var(--accent-text);border-color:var(--accent)">Kaydet</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+const LIB_V1 = 'https://cdn.jsdelivr.net/npm/@gradio/client@1.19.1/dist/browser.js';   // Gradio 4–5 sunucuları
+const LIB_V2 = 'https://cdn.jsdelivr.net/npm/@gradio/client@2.4.0/dist/browser.js';    // Gradio 6 sunucuları
+const ENGINES = {
+  leffa:   { space: 'franciszzj/Leffa',                    name: 'Leffa',          lib: LIB_V1 },
+  catvton: { space: 'zhengchong/CatVTON',                  name: 'CatVTON',        lib: LIB_V1 },
+  idm:     { space: 'yisol/IDM-VTON',                      name: 'IDM-VTON',       lib: LIB_V1 },
+  qwen:    { space: 'linoyts/Qwen-Image-Edit-2511-Fast',   name: 'Qwen Image Edit (hızlı)', lib: LIB_V2 },
+  qwenBig: { space: 'Qwen/Qwen-Image-Edit-2509',           name: 'Qwen Image Edit', lib: LIB_V1 },
+};
+const PROMPTS = {
+  upper:   'Dress the character from image 1 in the top (upper-body garment) shown in image 2. Keep the lower-body clothing from image 1.',
+  lower:   'Dress the character from image 1 in the bottom (pants, skirt or shorts) shown in image 2. Keep the upper-body clothing from image 1.',
+  overall: 'Dress the character from image 1 in the complete outfit shown in image 2.',
+};
+const KEEP = ' Keep the face, hairstyle, body shape, pose, art style, lighting and background of image 1 exactly the same. Only change the clothing, and match the outfit design, colors and details of image 2 faithfully.';
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : v; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} },
+};
+
+/* ---------- Durum ---------- */
+const S = {
+  person: null,     // { blob, url, w, h }  (3:4'e tamamlanmış)
+  cloth: null,      // { blob, url }
+  type: store.get('vton-type', 'upper'),
+  style: store.get('vton-style', 'photo'),
+  results: [],      // { url, before }
+  current: -1,
+  busy: false,
+};
+
+/* ---------- Resim hazırlama ---------- */
+function loadImg(src){
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+function toBlob(c, type='image/jpeg', q=0.92){ return new Promise(r => c.toBlob(r, type, q)); }
+function edgeColor(ctx, w, h){
+  const d = ctx.getImageData(0, 0, w, h).data; let r=0,g=0,b=0,n=0;
+  const px = (x,y) => { const o = (y*w+x)*4; r+=d[o]; g+=d[o+1]; b+=d[o+2]; n++; };
+  for (let x=0; x<w; x+=4){ px(x,0); px(x,h-1); }
+  for (let y=0; y<h; y+=4){ px(0,y); px(w-1,y); }
+  return `rgb(${r/n|0},${g/n|0},${b/n|0})`;
+}
+// Kişi fotoğrafı: kırpmadan 768×1024 (3:4) çerçeveye yerleştir → sonuç birebir hizalı olur
+async function preparePerson(file){
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await loadImg(url);
+    const W = 768, H = 1024;
+    const tmp = document.createElement('canvas'); tmp.width = im.width; tmp.height = im.height;
+    const tctx = tmp.getContext('2d'); tctx.drawImage(im, 0, 0);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = edgeColor(tctx, im.width, im.height); ctx.fillRect(0, 0, W, H);
+    const s = Math.min(W/im.width, H/im.height), dw = im.width*s, dh = im.height*s;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(im, (W-dw)/2, (H-dh)/2, dw, dh);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+async function prepareCloth(file){
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await loadImg(url);
+    const s = Math.min(1, 1024/Math.max(im.width, im.height));
+    const c = document.createElement('canvas'); c.width = Math.round(im.width*s); c.height = Math.round(im.height*s);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingQuality = 'high'; ctx.drawImage(im, 0, 0, c.width, c.height);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+function isHeic(file){ return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || ''); }
+
+async function setPersonCanvas(c, save=true){
+  const blob = await toBlob(c);
+  if (S.person) URL.revokeObjectURL(S.person.url);
+  S.person = { blob, url: URL.createObjectURL(blob) };
+  showDrop('dropPerson', S.person.url);
+  if (save) store.set('vton-person', c.toDataURL('image/jpeg', 0.85));
+  refresh();
+}
+async function onFile(kind, file){
+  if (!file) return;
+  try {
+    if (kind === 'person') await setPersonCanvas(await preparePerson(file));
+    else {
+      const c = await prepareCloth(file), blob = await toBlob(c);
+      if (S.cloth) URL.revokeObjectURL(S.cloth.url);
+      S.cloth = { blob, url: URL.createObjectURL(blob) };
+      showDrop('dropCloth', S.cloth.url);
+      refresh();
+    }
+    hideMsg();
+  } catch(e){
+    showMsg(isHeic(file)
+      ? 'Bu fotoğraf HEIC formatında, tarayıcı açamıyor. Ekran görüntüsünü al ya da JPG/PNG olarak kaydedip tekrar dene.'
+      : 'Bu dosya açılamadı. JPG veya PNG bir resim dene.', 'err');
+  }
+}
+function showDrop(id, url){
+  const d = $(id); d.querySelector('img').src = url || ''; d.classList.toggle('has', !!url);
+}
+$('filePerson').addEventListener('change', e => { onFile('person', e.target.files[0]); e.target.value = ''; });
+$('fileCloth').addEventListener('change', e => { onFile('cloth', e.target.files[0]); e.target.value = ''; });
+for (const [id, kind] of [['dropPerson','person'], ['dropCloth','cloth']]){
+  $(id).addEventListener('dragover', e => e.preventDefault());
+  $(id).addEventListener('drop', e => { e.preventDefault(); onFile(kind, e.dataTransfer.files[0]); });
+}
+document.querySelectorAll('.x').forEach(b => b.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  const k = b.dataset.clear;
+  if (S[k]) URL.revokeObjectURL(S[k].url);
+  S[k] = null; showDrop(k === 'person' ? 'dropPerson' : 'dropCloth', null);
+  if (k === 'person') store.del('vton-person');
+  refresh();
+}));
+
+/* ---------- Tür seçimi ---------- */
+function setType(t){
+  S.type = t; store.set('vton-type', t);
+  document.querySelectorAll('#typeSeg button').forEach(b => b.classList.toggle('on', b.dataset.type === t));
+}
+document.querySelectorAll('#typeSeg button').forEach(b => b.addEventListener('click', () => setType(b.dataset.type)));
+setType(S.type);
+function setStyle(v){
+  S.style = v; store.set('vton-style', v);
+  document.querySelectorAll('#styleSeg button').forEach(b => b.classList.toggle('on', b.dataset.style === v));
+  $('tipPerson').textContent = v === 'anime'
+    ? 'Karakterin net göründüğü bir çizim. Tüm vücut görünürse sonuç daha iyi olur.'
+    : 'Karşıdan, tüm vücut, iyi ışık. Kollar gövdeyi kapatmasın.';
+}
+document.querySelectorAll('#styleSeg button').forEach(b => b.addEventListener('click', () => setStyle(b.dataset.style)));
+setStyle(S.style);
+
+function refresh(){
+  const ready = S.person && S.cloth && !S.busy;
+  $('go').disabled = !ready;
+  $('goHint').textContent = S.busy ? 'Giydiriliyor, lütfen bekle…'
+    : !S.person && !S.cloth ? 'Önce iki fotoğrafı da yükle.'
+    : !S.person ? 'Kendi fotoğrafını da yükle.'
+    : !S.cloth ? 'Bir kıyafet fotoğrafı yükle.'
+    : 'Hazır. Sonuç genelde 20–60 saniye sürer, sıra varsa daha uzun.';
+  const has = S.current >= 0;
+  $('dl').disabled = !has; $('useAsMe').disabled = !has || S.busy; $('again').disabled = !has || !ready;
+}
+
+/* ---------- Mesajlar ---------- */
+function showMsg(t, kind){ const m = $('msg'); m.textContent = t; m.className = 'msg show ' + (kind || ''); }
+function hideMsg(){ $('msg').className = 'msg'; }
+function busy(on, t1, t2){
+  $('busy').classList.toggle('show', on);
+  if (t1 != null) $('busyT1').textContent = t1;
+  if (t2 != null) $('busyT2').textContent = t2;
+}
+
+/* ---------- Yapay zekâ sunucusu ---------- */
+const libs = {};
+const clients = {};
+async function getLib(key){
+  const u = ENGINES[key].lib;
+  if (!libs[u]) libs[u] = await import(u);
+  return libs[u];
+}
+async function getClient(key){
+  const lib = await getLib(key);
+  const token = store.get('vton-token', '').trim();
+  const ck = key + '|' + token;
+  if (!clients[ck]){
+    const opts = { events: ['data', 'status'] };
+    if (token) opts.hf_token = token;
+    clients[ck] = await lib.Client.connect(ENGINES[key].space, opts);
+  }
+  return clients[ck];
+}
+// Sonuçtaki ilk resim adresini bul (Image ya da Gallery çıktısı)
+function findUrl(x, depth=0){
+  if (!x || depth > 5) return null;
+  if (typeof x === 'string') return /^(https?:|blob:|data:)/.test(x) ? x : null;
+  if (typeof x === 'object'){
+    if (typeof x.url === 'string') return x.url;
+    for (const v of (Array.isArray(x) ? x : Object.values(x))){ const u = findUrl(v, depth+1); if (u) return u; }
+  }
+  return null;
+}
+async function blankMask(){
+  const c = document.createElement('canvas'); c.width = 768; c.height = 1024;
+  return toBlob(c, 'image/png');
+}
+async function runEngine(key, seed, onStatus){
+  const client = await getClient(key);
+  const { handle_file } = await getLib(key);
+  const steps = +store.get('vton-quality', '50');
+  let endpoint, data;
+  if (key === 'qwen' || key === 'qwenBig'){
+    endpoint = '/infer';
+    const imgs = [ { image: handle_file(S.person.blob), caption: null }, { image: handle_file(S.cloth.blob), caption: null } ];
+    data = key === 'qwen'
+      ? [imgs, PROMPTS[S.type] + KEEP, seed, false, 1.0, 4, 1024, 768, false]
+      : [imgs, PROMPTS[S.type] + KEEP, seed, false, 4.0, steps >= 50 ? 40 : 30, 1024, 768, false];
+  } else if (key === 'leffa'){
+    endpoint = '/leffa_predict_vt';
+    const garment = { upper:'upper_body', lower:'lower_body', overall:'dresses' }[S.type];
+    data = [
+      handle_file(S.person.blob), handle_file(S.cloth.blob), false, Math.max(30, steps), 2.5, seed,
+      S.type === 'upper' ? 'viton_hd' : 'dress_code', garment, false,
+    ];
+  } else if (key === 'catvton'){
+    endpoint = '/submit_function';
+    data = [
+      { background: handle_file(S.person.blob), layers: [handle_file(await blankMask())], composite: null },
+      handle_file(S.cloth.blob), S.type, steps, 2.5, seed, 'result only',
+    ];
+  } else {
+    endpoint = '/tryon';
+    data = [
+      { background: handle_file(S.person.blob), layers: [], composite: null },
+      handle_file(S.cloth.blob), 'clothing', true, false, Math.min(40, Math.max(20, steps - 10)), seed,
+    ];
+  }
+  const job = client.submit(endpoint, data);
+  let out = null;
+  for await (const m of job){
+    if (m.type === 'status'){
+      if (m.stage === 'error') throw new Error(m.message || 'Sunucu hatası');
+      onStatus && onStatus(m);
+    } else if (m.type === 'data'){ out = m.data; break; }
+  }
+  const url = findUrl(out && out[0]);
+  if (!url) throw new Error('Sunucu boş sonuç döndürdü');
+  return url;
+}
+function errText(e){
+  if (!e) return 'bilinmeyen hata';
+  if (typeof e === 'string') return e;
+  return e.message || (e.original_msg) || JSON.stringify(e).slice(0, 300);
+}
+function friendlyError(e){
+  const t = errText(e);
+  return friendlyShort(t) + '\n\nAyrıntı: ' + t;
+}
+function friendlyShort(t){
+  if (/quota|exceeded|ZeroGPU|GPU.*(limit|time)/i.test(t))
+    return 'Ücretsiz sunucunun kullanım kotası doldu. Ayarlar\'dan ücretsiz bir Hugging Face anahtarı ekle ya da biraz sonra tekrar dene.';
+  if (/sleeping|paused|not running|runtime error|\b50[234]\b|failed to fetch|NetworkError|Could not resolve app/i.test(t))
+    return 'Yapay zekâ sunucusuna şu an ulaşılamıyor. Biraz sonra tekrar dene.';
+  if (/token|401|403|unauthori[sz]ed/i.test(t))
+    return 'Hugging Face anahtarı geçersiz görünüyor. Ayarlar\'dan kontrol et ya da sil.';
+  return 'Giydirme yapılamadı.';
+}
+
+async function tryOn(seed){
+  if (!S.person || !S.cloth || S.busy) return;
+  S.busy = true; refresh(); hideMsg();
+  const t0 = Date.now();
+  const tick = setInterval(() => { $('busyT2').dataset.el = Math.round((Date.now()-t0)/1000); render2(); }, 1000);
+  let status = '';
+  const render2 = () => { $('busyT2').textContent = status + (status ? ' · ' : '') + ($('busyT2').dataset.el || 0) + ' sn'; };
+  busy(true, 'Sunucuya bağlanılıyor…', '');
+  $('empty').style.visibility = 'hidden';
+  if (innerWidth < 860) $('stage').scrollIntoView({ behavior:'smooth', block:'center' });
+  const onStatus = m => {
+    if (m.stage === 'pending' && m.position != null){
+      busy(true, 'Sırada bekleniyor', null); status = (m.position + 1) + '. sıradasın';
+    } else if (m.stage === 'pending'){
+      busy(true, 'Hazırlanıyor…', null); status = '';
+    } else if (m.stage === 'generating' || m.stage === 'streaming'){
+      busy(true, 'Kıyafet giydiriliyor…', null); status = m.eta ? 'yaklaşık ' + Math.round(m.eta) + ' sn' : '';
+    }
+    render2();
+  };
+  const order = S.style === 'anime'
+    ? (store.get('vton-token', '') ? ['qwen', 'qwenBig'] : ['qwen'])
+    : S.type === 'upper' ? ['leffa', 'catvton', 'idm'] : ['leffa', 'catvton'];
+  let url = null, used = null; const errs = [];
+  for (const key of order){
+    try {
+      if (key !== order[0]) busy(true, 'Yedek sunucu deneniyor…', null);
+      url = await runEngine(key, seed, onStatus); used = key; break;
+    } catch(e){ console.error(key, e); errs.push(ENGINES[key].name + ': ' + errText(e)); }
+  }
+  clearInterval(tick);
+  try {
+    if (!url){ const e = new Error(errs.join(' | ')); e.all = errs; throw e; }
+    busy(true, 'Sonuç indiriliyor…', '');
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('Sonuç indirilemedi (' + r.status + ')');
+    const blob = await r.blob();
+    S.results.push({ url: URL.createObjectURL(blob), before: S.person.url, engine: used });
+    showResult(S.results.length - 1);
+    showMsg('Hazır. Ortadaki çizgiyi kaydırarak önceki halinle karşılaştırabilirsin.' +
+      (used !== order[0] ? ' (Yedek sunucu kullanıldı: ' + ENGINES[used].name + '.)' : ''), 'ok');
+  } catch(e){
+    showMsg(friendlyError(e), 'err');
+  } finally {
+    S.busy = false; busy(false); refresh();
+    $('empty').style.visibility = '';
+  }
+}
+$('go').addEventListener('click', () => tryOn(42));
+$('again').addEventListener('click', () => tryOn(Math.floor(Math.random()*10000)));
+
+/* ---------- Sonuç ve karşılaştırma ---------- */
+function showResult(i){
+  S.current = i; const r = S.results[i];
+  $('after').src = r.url; $('before').src = r.before;
+  $('empty').style.display = 'none';
+  $('stage').classList.add('compare'); setSplit(0.5);
+  renderHist(); refresh();
+}
+function renderHist(){
+  const h = $('hist'); h.innerHTML = '';
+  if (S.results.length < 2) return;
+  S.results.forEach((r, i) => {
+    const im = document.createElement('img'); im.src = r.url; im.className = i === S.current ? 'on' : '';
+    im.addEventListener('click', () => showResult(i)); h.append(im);
+  });
+}
+function setSplit(f){
+  f = Math.max(0, Math.min(1, f));
+  $('before').style.clipPath = `inset(0 ${(1-f)*100}% 0 0)`;
+  $('divider').style.left = (f*100) + '%';
+}
+{
+  const st = $('stage'); let drag = false;
+  const at = e => { const r = st.getBoundingClientRect(); setSplit((e.clientX - r.left)/r.width); };
+  st.addEventListener('pointerdown', e => { if (!st.classList.contains('compare')) return; drag = true; st.setPointerCapture(e.pointerId); at(e); });
+  st.addEventListener('pointermove', e => { if (drag) at(e); });
+  st.addEventListener('pointerup', () => { drag = false; });
+  st.addEventListener('pointercancel', () => { drag = false; });
+}
+$('dl').addEventListener('click', () => {
+  const r = S.results[S.current]; if (!r) return;
+  const a = document.createElement('a'); a.href = r.url; a.download = 'sanal-kabin-' + (S.current+1) + '.jpg'; a.click();
+});
+// Katman katman giydirme: sonucu yeni kişi fotoğrafı yap (ör. önce üst, sonra alt)
+$('useAsMe').addEventListener('click', async () => {
+  const r = S.results[S.current]; if (!r) return;
+  const im = await loadImg(r.url);
+  const c = document.createElement('canvas'); c.width = 768; c.height = 1024;
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 768, 1024);
+  const s = Math.min(768/im.width, 1024/im.height);
+  ctx.drawImage(im, (768 - im.width*s)/2, (1024 - im.height*s)/2, im.width*s, im.height*s);
+  await setPersonCanvas(c);
+  showMsg('Sonuç artık senin fotoğrafın. Şimdi başka bir kıyafet (ör. alt) ekleyebilirsin.', 'ok');
+});
+
+/* ---------- Ayarlar ---------- */
+$('openSettings').addEventListener('click', () => {
+  $('token').value = store.get('vton-token', '');
+  $('quality').value = store.get('vton-quality', '50');
+  $('settings').showModal();
+});
+$('saveSettings').addEventListener('click', () => {
+  const t = $('token').value.trim();
+  if (t) store.set('vton-token', t); else store.del('vton-token');
+  store.set('vton-quality', $('quality').value);
+});
+
+/* ---------- Başlat: kayıtlı fotoğrafı geri yükle ---------- */
+(async () => {
+  const saved = store.get('vton-person', null);
+  if (saved){
+    try { const im = await loadImg(saved); const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+      c.getContext('2d').drawImage(im, 0, 0); await setPersonCanvas(c, false); } catch(e){}
+  }
+  refresh();
+})();
+</script>
+</body>
+</html>
